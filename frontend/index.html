@@ -4,21 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PatternGuard — Spam & Content Detector</title>
-
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-
   <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-
 <header>
   <div class="logo">
     <div class="logo-icon">🔍</div>
     PatternGuard
     <span class="algo-tag">Aho-Corasick</span>
   </div>
-
   <div id="api-status">
     <div class="status-dot" id="status-dot"></div>
     <span id="status-label">Connecting…</span>
@@ -27,7 +22,7 @@
 
 <main>
 
-  <!-- LEFT -->
+  <!-- LEFT: Keyword Manager -->
   <div>
     <div class="card">
       <div class="card-header">🏷 Keywords / Patterns</div>
@@ -41,9 +36,9 @@
         <button class="btn btn-primary" onclick="addKeyword()">Add</button>
       </div>
 
+      <!-- Quick preset packs -->
       <div class="presets">
         <div class="presets-label">Quick presets</div>
-
         <div class="presets-row">
           <button class="preset-chip" onclick="loadPreset('spam')">🚫 Spam</button>
           <button class="preset-chip" onclick="loadPreset('phishing')">🎣 Phishing</button>
@@ -53,9 +48,7 @@
       </div>
 
       <div class="input-row" style="justify-content:flex-end">
-        <button class="btn btn-danger btn-sm" onclick="clearAll()">
-          🗑 Clear all keywords
-        </button>
+        <button class="btn btn-danger btn-sm" onclick="clearAll()">🗑 Clear all keywords</button>
       </div>
     </div>
 
@@ -64,35 +57,28 @@
     </p>
   </div>
 
-  <!-- RIGHT -->
+  <!-- RIGHT: Text + Results -->
   <div class="right-col">
 
+    <!-- Text input card -->
     <div class="card">
       <div class="card-header">📝 Input Text</div>
-
       <textarea
         id="text-input"
         placeholder="Paste any text here — email, comment, log file, message, resume…&#10;&#10;The Aho-Corasick algorithm will search for all keywords in one single pass through the text.">
       </textarea>
-
       <div class="textarea-footer">
         <span class="char-count" id="char-count">0 characters</span>
-
         <div style="display:flex;gap:0.5rem;">
-          <button class="btn btn-outline btn-sm" onclick="loadSample()">
-            Load sample text
-          </button>
-
-          <button class="btn btn-primary" id="scan-btn" onclick="scan()">
-            ⚡ Scan
-          </button>
+          <button class="btn btn-outline btn-sm" onclick="loadSample()">Load sample text</button>
+          <button class="btn btn-primary" id="scan-btn" onclick="scan()">⚡ Scan</button>
         </div>
       </div>
     </div>
 
+    <!-- Results card -->
     <div class="card">
       <div class="card-header">📊 Results</div>
-
       <div id="results-body">
         <div class="placeholder">
           <span>🔎</span>
@@ -103,9 +89,7 @@
 
   </div>
 </main>
-
 <div id="toast"></div>
-
 <script src="script.js"></script>
 </body>
 </html>
