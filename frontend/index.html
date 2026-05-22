@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PatternGuard — Spam & Content Detector</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #f0f4ff;
+      --white:    #ffffff;
+      --border:   #dde3f0;
+      --text:     #1e2330;
+      --muted:    #7b8399;
+      --accent:   #4f6ef7;
+      --accent-light: #eef1ff;
+      --danger:   #e84b4b;
+      --danger-light: #fff0f0;
+      --success:  #22c55e;
+      --warning:  #f59e0b;
+      --mono:     'JetBrains Mono', monospace;
+      --sans:     'Inter', sans-serif;
+      --radius:   10px;
+      --shadow:   0 2px 12px rgba(0,0,0,0.07);
+    }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .logo-icon {
+      background: var(--accent);
+      color: #fff;
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.95rem;
+    }
+
+    .algo-tag {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      background: var(--accent-light);
+      color: var(--accent);
+      border: 1px solid #c7d2fe;
+      padding: 2px 10px;
+      border-radius: 20px;
+    }
+
+    #api-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .status-dot.online  { background: var(--success); }
+    .status-dot.offline { background: var(--danger); }
+
+    /* ── Main layout ── */
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 1.5rem;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 0.85rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* ── Keyword tags area ── */
+    .tags-area {
+      padding: 1rem;
+      min-height: 90px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      align-content: flex-start;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--accent-light);
+      border: 1px solid #c7d2fe;
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      padding: 3px 8px 3px 10px;
+      border-radius: 6px;
+      animation: pop-in 0.15s ease;
+    }
+
+    @keyframes pop-in {
+      from { transform: scale(0.85); opacity: 0; }
+      to   { transform: scale(1);    opacity: 1; }
+    }
+
+    .tag-remove {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--accent);
+      font-size: 1rem;
+      line-height: 1;
+      padding: 0;
+      opacity: 0.5;
+    }
+    .tag-remove:hover { opacity: 1; }
+
+    .empty-msg {
+      width: 100%;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+      padding: 1rem 0;
+    }
+
+    /* ── Input row ── */
+    .input-row {
+      padding: 0.75rem 1rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: var(--mono);
+      font-size: 0.83rem;
+      color: var(--text);
+      background: var(--bg);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      background: #fff;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: none;
+      outline: none;
+      font-family: var(--mono);
+      font-size: 0.83rem;
+      color: var(--text);
+      background: var(--white);
+      resize: vertical;
+      min-height: 160px;
+      line-height: 1.7;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 8px;
+      font-family: var(--sans);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-danger {
+      background: var(--danger-light);
+      border: 1px solid #fca5a5;
+      color: var(--danger);
+    }
+    .btn-danger:hover { background: #ffe0e0; }
+
+    .btn-sm {
+      padding: 0.35rem 0.75rem;
+      font-size: 0.75rem;
+    }
+
+    /* ── Presets section ── */
+    .presets {
+      padding: 0.75rem 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .presets-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .presets-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .preset-chip {
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      font-family: var(--sans);
+      transition: all 0.15s;
+    }
+    .preset-chip:hover { border-color: var(--warning); color: var(--warning); background: #fffbeb; }
+
+    /* ── Right column ── */
+    .right-col {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .textarea-footer {
+      padding: 0.65rem 1rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .char-count {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    /* ── Results ── */
+    #results-body {
+      padding: 0;
+    }
+
+    /* Stats row */
+    .stats-row {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stat-box {
+      flex: 1;
+      padding: 0.9rem 1rem;
+      border-right: 1px solid var(--border);
+      text-align: center;
+    }
+    .stat-box:last-child { border-right: none; }
+
+    .stat-number {
+      font-family: var(--mono);
+      font-size: 1.5rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .stat-number.red    { color: var(--danger); }
+    .stat-number.blue   { color: var(--accent); }
+    .stat-number.orange { color: var(--warning); }
+
+    .stat-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    /* Highlighted text display */
+    .highlighted-text {
+      padding: 1rem 1.25rem;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      line-height: 1.9;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border-bottom: 1px solid var(--border);
+      background: #fafbff;
+    }
+
+    mark.match {
+      background: #fee2e2;
+      color: #b91c1c;
+      border-radius: 3px;
+      padding: 1px 2px;
+      border-bottom: 2px solid var(--danger);
+      font-weight: 500;
+    }
+
+    /* Match list */
+    .match-list {
+      padding: 0.75rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+
+    .match-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      animation: slide-up 0.15s ease both;
+    }
+
+    @keyframes slide-up {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .match-word   { color: var(--danger);  font-weight: 600; min-width: 90px; }
+    .match-at     { color: var(--warning); min-width: 70px; }
+    .match-snippet { color: var(--muted);  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .match-snippet mark { background: #fee2e2; color: var(--text); }
+
+    /* Empty / placeholder state */
+    .placeholder {
+      padding: 2.5rem 1rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .placeholder span { display: block; font-size: 2rem; margin-bottom: 0.5rem; }
+
+    /* Loading spinner */
+    .spinner {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border: 2px solid #c7d2fe;
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.5s linear infinite;
+      vertical-align: middle;
+      margin-right: 4px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Toast notification */
+    #toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      padding: 0.65rem 1.1rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-family: var(--sans);
+      color: #fff;
+      z-index: 999;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.25s ease;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.error   { background: var(--danger); }
+    #toast.success { background: var(--success); }
+
+    @media (max-width: 800px) {
+      main { grid-template-columns: 1fr; padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🔍</div>
+    PatternGuard
+    <span class="algo-tag">Aho-Corasick</span>
+  </div>
+  <div id="api-status">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-label">Connecting…</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- LEFT: Keyword Manager -->
+  <div>
+    <div class="card">
+      <div class="card-header">🏷 Keywords / Patterns</div>
+
+      <div class="tags-area" id="tags-area">
+        <div class="empty-msg" id="empty-msg">No keywords added yet</div>
+      </div>
+
+      <div class="input-row">
+        <input type="text" id="kw-input" placeholder="Type a keyword, press Enter" />
+        <button class="btn btn-primary" onclick="addKeyword()">Add</button>
+      </div>
+
+      <!-- Quick preset packs -->
+      <div class="presets">
+        <div class="presets-label">Quick presets</div>
+        <div class="presets-row">
+          <button class="preset-chip" onclick="loadPreset('spam')">🚫 Spam</button>
+          <button class="preset-chip" onclick="loadPreset('phishing')">🎣 Phishing</button>
+          <button class="preset-chip" onclick="loadPreset('profanity')">🔞 Profanity</button>
+          <button class="preset-chip" onclick="loadPreset('resume')">📄 Resume</button>
+        </div>
+      </div>
+
+      <div class="input-row" style="justify-content:flex-end">
+        <button class="btn btn-danger btn-sm" onclick="clearAll()">🗑 Clear all keywords</button>
+      </div>
+    </div>
+
+    <p style="font-size:0.72rem;color:var(--muted);margin-top:0.5rem;padding:0 2px;">
+      <span id="kw-count">0</span> keyword(s) loaded into automaton
+    </p>
+  </div>
+
+  <!-- RIGHT: Text + Results -->
+  <div class="right-col">
+
+    <!-- Text input card -->
+    <div class="card">
+      <div class="card-header">📝 Input Text</div>
+      <textarea
+        id="text-input"
+        placeholder="Paste any text here — email, comment, log file, message, resume…&#10;&#10;The Aho-Corasick algorithm will search for all keywords in one single pass through the text.">
+      </textarea>
+      <div class="textarea-footer">
+        <span class="char-count" id="char-count">0 characters</span>
+        <div style="display:flex;gap:0.5rem;">
+          <button class="btn btn-outline btn-sm" onclick="loadSample()">Load sample text</button>
+          <button class="btn btn-primary" id="scan-btn" onclick="scan()">⚡ Scan</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results card -->
+    <div class="card">
+      <div class="card-header">📊 Results</div>
+      <div id="results-body">
+        <div class="placeholder">
+          <span>🔎</span>
+          Add keywords and paste text, then click <strong>Scan</strong>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+  const API_URL = 'http://localhost:8000';
+
+  // Preset keyword packs
+  const PRESETS = {
+    spam:     ['spam', 'scam', 'fraud', 'free money', 'winner', 'prize', 'act now', 'click here', 'limited offer', 'make money fast'],
+    phishing: ['verify your account', 'password expired', 'unusual activity', 'confirm identity', 'wire transfer', 'bank details', 'click the link', 'suspended'],
+    profanity: ['idiot', 'stupid', 'hate', 'loser', 'dummy', 'jerk'],
+    resume:   ['python', 'javascript', 'react', 'machine learning', 'sql', 'docker', 'aws', 'api', 'agile', 'leadership', 'communication']
+  };
+
+  let keywords = []; // our local list of keywords
+
+  // ── Keyword management ──────────────────────────────────────────────────────
+
+  function addKeyword() {
+    const input = document.getElementById('kw-input');
+    const word = input.value.trim().toLowerCase();
+    if (!word) return;
+    if (keywords.includes(word)) { toast('Keyword already added', 'error'); input.value = ''; return; }
+    keywords.push(word);
+    input.value = '';
+    input.focus();
+    renderTags();
+    pushKeywordsToAPI();
+  }
+
+  function removeKeyword(index) {
+    keywords.splice(index, 1);
+    renderTags();
+    pushKeywordsToAPI();
+  }
+
+  function clearAll() {
+    keywords = [];
+    fetch(`${API_URL}/keywords`, { method: 'DELETE' }).catch(() => {});
+    renderTags();
+  }
+
+  function loadPreset(name) {
+    let added = 0;
+    PRESETS[name].forEach(w => {
+      if (!keywords.includes(w)) { keywords.push(w); added++; }
+    });
+    renderTags();
+    pushKeywordsToAPI();
+    toast(`Added ${added} keywords from "${name}" preset`, 'success');
+  }
+
+  function renderTags() {
+    const area  = document.getElementById('tags-area');
+    const empty = document.getElementById('empty-msg');
+    document.getElementById('kw-count').textContent = keywords.length;
+
+    // Remove existing tags (keep empty message element)
+    area.querySelectorAll('.tag').forEach(t => t.remove());
+
+    empty.style.display = keywords.length === 0 ? 'block' : 'none';
+
+    keywords.forEach((word, i) => {
+      const tag = document.createElement('div');
+      tag.className = 'tag';
+      tag.innerHTML = `${word} <button class="tag-remove" onclick="removeKeyword(${i})" title="Remove">×</button>`;
+      area.appendChild(tag);
+    });
+  }
+
+  // Sync local keywords list to the backend
+  async function pushKeywordsToAPI() {
+    if (keywords.length === 0) return;
+    try {
+      await fetch(`${API_URL}/keywords`, { method: 'DELETE' });
+      await fetch(`${API_URL}/keywords`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keywords })
+      });
+    } catch (e) {
+      // Backend not running — that's fine, we have a local fallback
+    }
+  }
+
+  // ── Scan ────────────────────────────────────────────────────────────────────
+
+  async function scan() {
+    const text = document.getElementById('text-input').value;
+
+    if (!text.trim())    { toast('Please enter some text to scan', 'error'); return; }
+    if (!keywords.length){ toast('Please add at least one keyword', 'error'); return; }
+
+    const btn = document.getElementById('scan-btn');
+    btn.innerHTML = '<span class="spinner"></span>Scanning…';
+    btn.disabled = true;
+
+    try {
+      await pushKeywordsToAPI();
+      const res  = await fetch(`${API_URL}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      const data = await res.json();
+      renderResults(data, text);
+    } catch (e) {
+      // Backend offline — run search locally in the browser
+      const data = localSearch(text, keywords);
+      renderResults(data, text);
+    } finally {
+      btn.innerHTML = '⚡ Scan';
+      btn.disabled = false;
+    }
+  }
+
+  // Local JavaScript fallback (runs in browser when backend is offline)
+  function localSearch(text, kwList) {
+    const matches = [];
+    const lower   = text.toLowerCase();
+    kwList.forEach(kw => {
+      let pos = 0;
+      while ((pos = lower.indexOf(kw, pos)) !== -1) {
+        matches.push({ keyword: kw, position: pos, end: pos + kw.length, length: kw.length });
+        pos++;
+      }
+    });
+    matches.sort((a, b) => a.position - b.position);
+    return {
+      matches,
+      total_matches: matches.length,
+      unique_keywords_found: [...new Set(matches.map(m => m.keyword))],
+      text_length: text.length,
+      keywords_searched: kwList.length,
+      time_ms: '< 1'
+    };
+  }
+
+  // ── Render results ──────────────────────────────────────────────────────────
+
+  function renderResults(data, originalText) {
+    const body = document.getElementById('results-body');
+
+    if (data.total_matches === 0) {
+      body.innerHTML = `<div class="placeholder"><span>✅</span>No matches found — text looks clean!</div>`;
+      return;
+    }
+
+    const highlightedText = buildHighlight(originalText, data.matches);
+
+    const rows = data.matches.map((m, i) => {
+      // show a small context snippet around the match
+      const snippet = originalText.substring(Math.max(0, m.position - 12), m.end + 12);
+      const safeSnippet = escHtml(snippet).replace(
+        new RegExp(escHtml(m.keyword), 'gi'),
+        s => `<mark>${s}</mark>`
+      );
+      return `
+        <div class="match-row" style="animation-delay:${i*0.03}s">
+          <span class="match-word">${m.keyword}</span>
+          <span class="match-at">pos ${m.position}</span>
+          <span class="match-snippet">…${safeSnippet}…</span>
+        </div>`;
+    }).join('');
+
+    body.innerHTML = `
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-number red">${data.total_matches}</div>
+          <div class="stat-label">Matches</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number orange">${data.unique_keywords_found.length}</div>
+          <div class="stat-label">Keywords Hit</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number blue">${data.text_length}</div>
+          <div class="stat-label">Chars Scanned</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number blue">${data.time_ms}ms</div>
+          <div class="stat-label">Scan Time</div>
+        </div>
+      </div>
+      <div class="highlighted-text">${highlightedText}</div>
+      <div class="match-list">${rows}</div>`;
+  }
+
+  // Wrap matched keywords in <mark> tags without breaking overlaps
+  function buildHighlight(text, matches) {
+    const sorted = [...matches].sort((a, b) => a.position - b.position);
+    let html = '';
+    let cursor = 0;
+    for (const m of sorted) {
+      if (m.position < cursor) continue;
+      html += escHtml(text.slice(cursor, m.position));
+      html += `<mark class="match">${escHtml(text.slice(m.position, m.end))}</mark>`;
+      cursor = m.end;
+    }
+    html += escHtml(text.slice(cursor));
+    return html;
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Sample text ─────────────────────────────────────────────────────────────
+
+  function loadSample() {
+    document.getElementById('text-input').value =
+`Subject: URGENT — You've been selected!
+
+Dear user,
+
+You are our lucky winner! Click here to claim your free money prize.
+This is a limited offer — act now before it expires.
+
+To verify your account, please confirm your bank details and wire transfer $500.
+This is NOT a scam. Definitely not fraud either.
+
+Regards,
+The "Totally Legit" Team`;
+    updateCharCount();
+  }
+
+  function updateCharCount() {
+    const n = document.getElementById('text-input').value.length;
+    document.getElementById('char-count').textContent = `${n.toLocaleString()} character${n !== 1 ? 's' : ''}`;
+  }
+
+  // ── Toast ───────────────────────────────────────────────────────────────────
+
+  function toast(msg, type = 'success') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `show ${type}`;
+    setTimeout(() => el.className = '', 2500);
+  }
+
+  // ── Health check ────────────────────────────────────────────────────────────
+
+  async function checkHealth() {
+    const dot   = document.getElementById('status-dot');
+    const label = document.getElementById('status-label');
+    try {
+      const res  = await fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(2000) });
+      const data = await res.json();
+      dot.className   = 'status-dot online';
+      label.textContent = `API online · ${data.keywords_loaded} keywords loaded`;
+    } catch {
+      dot.className   = 'status-dot offline';
+      label.textContent = 'API offline (browser fallback active)';
+    }
+  }
+
+  // ── Event listeners + init ──────────────────────────────────────────────────
+
+  document.getElementById('kw-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addKeyword();
+  });
+
+  document.getElementById('text-input').addEventListener('input', updateCharCount);
+
+  checkHealth();
+  setInterval(checkHealth, 8000);
+  renderTags();
+</script>
+</body>
+</html>
