@@ -1,272 +1,162 @@
-# PatternGuard — Aho-Corasick Content Scanner
+# PatternGuard — Spam & Content Detector
 
-A full-stack content moderation / text scanning tool powered by a **from-scratch Aho-Corasick algorithm** implementation.
+A keyword detection tool powered by the **Aho-Corasick algorithm** — capable of scanning text for multiple keywords simultaneously in linear time, regardless of how many keywords are loaded.
+
+---
+<img width="1897" height="907" alt="image" src="https://github.com/user-attachments/assets/2cb0c564-448c-4e34-bb0e-be2bead5b29a" />
+
 
 ---
 
-## 🧠 Algorithm Explanation
+## What It Does
 
-### What is Aho-Corasick?
-
-The **Aho-Corasick algorithm** (Aho & Corasick, 1975) is a multi-pattern string search algorithm. Instead of searching for each keyword one at a time, it finds **all occurrences of all patterns simultaneously** in a single pass through the text.
-
-Think of it as a turbo-charged `grep` for multiple patterns at once.
+- Add keywords manually or load preset packs (spam, phishing, profanity, resume skills)
+- Paste any text and scan it instantly
+- See every match highlighted in-place, with position, context snippet, and stats
+- Works fully in the browser even when the backend is offline (JS fallback)
 
 ---
 
-### How It Works — Step by Step
-
-#### Phase 1: Build a Trie (Prefix Tree)
-
-Insert every keyword into a Trie. Each node represents a character; paths from root to a leaf spell out a keyword.
+## Project Structure
 
 ```
-Keywords: ["spam", "scam", "sc"]
-
-         (root)
-         /    \
-        s      ...
-        |
-        p — a — m   ← "spam" ends here
-        |
-        c — a — m   ← "scam" ends here
-        |
-       [output: "sc"]  ← "sc" ends here
-```
-
-#### Phase 2: Build Failure Links (BFS)
-
-This is the clever part. For each node N, compute a **failure link** — a pointer to the longest proper suffix of the path (root → N) that is also a prefix of some pattern.
-
-- Failure links are computed bottom-up via **BFS (Breadth-First Search)**.
-- If we're at a node and the next character doesn't match, we follow the failure link instead of restarting from root.
-- This guarantees we never miss an overlapping match.
-
-**Output propagation:** If a failure link chain leads to a node that marks the end of a pattern, we propagate those outputs upward so matches are never missed.
-
-#### Phase 3: Search
-
-Walk through the text character by character:
-- Follow the `goto` transition if the character matches a child.
-- If no match, follow the `failure_link` (repeat until root).
-- At each position, collect any patterns in the `output` list.
-
-This gives us **all matches in a single O(n) pass**.
-
----
-
-### Time & Space Complexity
-
-| Operation | Complexity | What It Means |
-|-----------|-----------|---------------|
-| Build (insert keywords) | O(Σ\|kᵢ\|) | Proportional to total keyword characters |
-| Build (failure links) | O(Σ\|kᵢ\|) | One BFS pass over the trie |
-| **Search** | **O(n + m + z)** | n = text length, m = total keyword length, z = matches |
-| Space | O(Σ\|kᵢ\| × Σ) | Σ = alphabet size |
-
-**vs Naïve approach:** Searching k patterns naïvely costs O(n × k). Aho-Corasick reduces this to O(n) — the number of patterns no longer affects search time!
-
----
-
-### Real-World Applications
-
-| Domain | Use Case |
-|--------|----------|
-| Email security | Spam / phishing detection |
-| Content moderation | Chat filters, comment moderation |
-| Cybersecurity | Malware/intrusion signature scanning (e.g. Snort IDS) |
-| Bioinformatics | DNA sequence scanning for multiple gene patterns |
-| Search engines | Keyword indexing and highlighting |
-| Log monitoring | Real-time log analysis for error patterns |
-
----
-
-## 🏗 Architecture
-
-```
-┌─────────────────────────────────────────────┐
-│                  Frontend                    │
-│         (HTML/CSS/JS — index.html)           │
-│                                              │
-│  ┌──────────────┐  ┌──────────────────────┐ │
-│  │ Keyword Panel │  │   Text Input + UI    │ │
-│  └──────────────┘  └──────────────────────┘ │
-│           │                 │                │
-│           └────── REST ──────┘               │
-└─────────────────────────────────────────────┘
-                    │
-                    │ HTTP (localhost:8000)
-                    ▼
-┌─────────────────────────────────────────────┐
-│              FastAPI Backend                 │
-│                  main.py                     │
-│                                              │
-│  POST /keywords  →  Add patterns             │
-│  GET  /keywords  →  List patterns            │
-│  DELETE /keywords → Reset                    │
-│  POST /search    →  Run Aho-Corasick         │
-│  GET  /health    →  Status check             │
-└─────────────────────────────────────────────┘
-                    │
-                    ▼
-┌─────────────────────────────────────────────┐
-│         aho_corasick.py (Pure Python)        │
-│                                              │
-│  AhoCorasickNode  — Trie node                │
-│  AhoCorasick      — Automaton                │
-│    .add_keywords()  — Trie insertion         │
-│    .build()         — BFS failure links      │
-│    .search()        — Single-pass scan       │
-└─────────────────────────────────────────────┘
+patternguard/
+├── backend/
+│   ├── aho_corasick.py        # Aho-Corasick trie implementation
+│   ├── main.py                # FastAPI REST API
+│   ├── requirements.txt       # Python dependencies
+│   └── test_aho_corasick.py   # Unit tests
+├── frontend/
+│   └── index.html             # Single-file frontend (vanilla HTML/CSS/JS)
+└── README.md
 ```
 
 ---
 
-## 🚀 Setup & Running
+## How the Algorithm Works
+
+[Aho-Corasick](https://en.wikipedia.org/wiki/Aho%E2%80%93Corasick_algorithm) builds a trie from all keywords, then adds **failure links** — shortcuts that let the search engine fall back to the longest matching suffix when a character doesn't match. This means:
+
+- **O(n + m + z)** time complexity — where `n` is text length, `m` is total keyword length, and `z` is the number of matches
+- All keywords are searched in a **single pass** over the text
+- Overlapping matches (e.g. `he`, `she`, `hers` inside `ushers`) are all found correctly
+
+---
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/health` | Check API status and loaded keyword count |
+| `POST` | `/keywords` | Add keywords `{ "keywords": ["spam", "fraud"] }` |
+| `GET` | `/keywords` | List all loaded keywords |
+| `DELETE` | `/keywords` | Clear all keywords |
+| `POST` | `/search` | Scan text `{ "text": "your text here" }` |
+
+---
+
+## Setup & Running
 
 ### Prerequisites
 
-- Python 3.9+
-- A web browser (for the frontend)
+- Python 3.10 or higher
+- A modern web browser (Chrome, Firefox, Safari, Edge)
 
-### Backend
+---
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/your-username/patternguard.git
+cd patternguard
+```
+
+---
+
+### 2. Set Up the Backend
 
 ```bash
 cd backend
+
+# Create and activate a virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate        # macOS / Linux
+venv\Scripts\activate           # Windows
+
+# Install dependencies
 pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+
+# Start the API server
+uvicorn main:app --reload
 ```
 
-The API will be live at `http://localhost:8000`.
-
-Interactive docs: `http://localhost:8000/docs`
-
-### Frontend
-
-Just open `frontend/index.html` in your browser. No build step needed.
-
-> **Note:** The frontend includes a built-in browser fallback. Even if the backend is offline, pattern matching still works locally in JavaScript.
+The API will be live at **http://localhost:8000**.  
+Interactive docs are available at **http://localhost:8000/docs**.
 
 ---
 
-## 📡 API Reference
+### 3. Open the Frontend
 
-### `GET /health`
+No build step needed — just open the file in your browser:
 
-Returns service status.
+```bash
+# macOS
+open frontend/index.html
 
-```json
-{
-  "status": "ok",
-  "keywords_loaded": 5,
-  "uptime_seconds": 42.3,
-  "version": "1.0.0"
-}
+# Linux
+xdg-open frontend/index.html
+
+# Windows
+start frontend/index.html
 ```
+
+Or drag `frontend/index.html` into any browser tab.
+
+> **Note:** The frontend will automatically detect whether the backend is running. If the API is offline, it falls back to a JavaScript implementation of the same search logic — so the app remains fully usable either way.
 
 ---
 
-### `POST /keywords`
-
-Add keywords to the automaton.
-
-**Request:**
-```json
-{
-  "keywords": ["spam", "scam", "fraud"]
-}
-```
-
-**Response:**
-```json
-{
-  "keywords": ["spam", "scam", "fraud"],
-  "count": 3,
-  "automaton_built": true
-}
-```
-
----
-
-### `POST /search`
-
-Search text for all loaded patterns.
-
-**Request:**
-```json
-{
-  "text": "This message contains spam and fraud."
-}
-```
-
-**Response:**
-```json
-{
-  "matches": [
-    { "keyword": "spam", "position": 22, "end": 26, "length": 4 },
-    { "keyword": "fraud", "position": 31, "end": 36, "length": 5 }
-  ],
-  "total_matches": 2,
-  "unique_keywords_found": ["fraud", "spam"],
-  "text_length": 37,
-  "keywords_searched": 3,
-  "time_ms": 0.021
-}
-```
-
----
-
-## 🧪 Running Tests
+### 4. Run the Tests
 
 ```bash
 cd backend
 python test_aho_corasick.py
 ```
 
+All 8 test groups should pass, covering basic matches, overlapping keywords, case-insensitivity, edge cases, and reset behavior.
+
 ---
 
-## 🐳 Docker (Bonus)
+## Usage Example
+
+**Via the UI:**
+1. Click a preset (e.g. **Spam**) or type a keyword and press Enter
+2. Paste text into the input area (or click **Load Sample**)
+3. Click **⚡ Scan**
+4. Matches are highlighted in the text with position and context details
+
+**Via the API directly:**
 
 ```bash
-# From project root
-docker build -t patterngard-backend ./backend
-docker run -p 8000:8000 patterngard-backend
+# Load keywords
+curl -X POST http://localhost:8000/keywords \
+  -H "Content-Type: application/json" \
+  -d '{"keywords": ["spam", "fraud", "free money"]}'
+
+# Scan text
+curl -X POST http://localhost:8000/search \
+  -H "Content-Type: application/json" \
+  -d '{"text": "This is totally not spam or fraud, just free money!"}'
 ```
 
 ---
 
-## 💡 Assumptions & Design Decisions
+## Dependencies
 
-1. **Lowercase normalization** — All keywords and search text are lowercased for case-insensitive matching. Original text casing is preserved for display.
-2. **In-memory state** — The automaton lives in memory. For production, use Redis or a database for persistence across restarts.
-3. **Pure Python** — The algorithm is implemented from scratch without any library (like `pyahocorasick`) to demonstrate understanding.
-4. **Browser fallback** — The frontend includes a JS fallback that works even without the backend running.
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `fastapi` | 0.115.0 | REST API framework |
+| `uvicorn` | 0.30.6 | ASGI server |
+| `pydantic` | 2.9.2 | Request/response validation |
 
----
-
-## 🔮 Future Improvements
-
-- [ ] Persistent keyword storage (SQLite / Redis)
-- [ ] Multi-language / Unicode support improvements
-- [ ] Batch file upload (scan PDFs, CSVs)
-- [ ] Severity levels per keyword
-- [ ] Export results as JSON/CSV
-- [ ] WebSocket for real-time streaming scan
-- [ ] Docker Compose for one-command startup
-- [ ] Async endpoint with background processing for large texts
-
----
-
-## 📁 Project Structure
-
-```
-aho-corasick-project/
-├── backend/
-│   ├── aho_corasick.py      # Core algorithm (pure Python)
-│   ├── main.py              # FastAPI application
-│   ├── requirements.txt     # Python dependencies
-│   └── test_aho_corasick.py # Unit tests
-├── frontend/
-│   └── index.html           # Single-file frontend
-└── README.md
-```
+The frontend has no dependencies — it uses plain HTML, CSS, and JavaScript.
